@@ -418,7 +418,7 @@ def format_basis(basis_tab):
         [0.82454700000000003, 0.90469100000000002]],
         [0, [0.18319199999999999, 1.0]]]}
     '''
-    basis_converter = _generate_basis_converter()
+    basis_converter = _generate_basis_converter()# 返回一个函数作用是从文件读取基组，文件路径_BASIS_DIR=./pyscf/gto/basis/基组名(ccpvdz).dat
     fmt_basis = {}
     for atom, atom_basis in basis_tab.items():
         symb = _atom_symbol(atom)
@@ -2321,7 +2321,7 @@ class Mole(lib.StreamObject):
         if not DISABLE_GC:
             gc.collect()  # To release circular referred objects
 
-        if isinstance(dump_input, (str, unicode)):
+        if isinstance(dump_input, (str, unicode)):# 从文件读入原子结构
             sys.stderr.write('Assigning the first argument %s to mol.atom\n' %
                              dump_input)
             dump_input, atom = True, dump_input
@@ -2341,7 +2341,7 @@ class Mole(lib.StreamObject):
         if cart is not None: self.cart = cart
 
         if parse_arg:
-            _update_from_cmdargs_(self)
+            _update_from_cmdargs_(self)# 从命令行读入参数verbose, max_memory, output
 
         # avoid opening output file twice
         if (self.output is not None
@@ -2360,10 +2360,10 @@ class Mole(lib.StreamObject):
                 self.stdout = open(self.output, 'w')
 
         if self.verbose >= logger.WARN:
-            self.check_sanity()
+            self.check_sanity()# 检查类的属性是否被重载，没用
 
-        self._atom = self.format_atom(self.atom, unit=self.unit)
-        uniq_atoms = set([a[0] for a in self._atom])
+        self._atom = self.format_atom(self.atom, unit=self.unit)# 设置unit,返回zip(原子名称，坐标)
+        uniq_atoms = set([a[0] for a in self._atom])# 不重复的原子
 
         if isinstance(self.basis, (str, unicode, tuple, list)):
             # specify global basis for whole molecule
@@ -2375,7 +2375,7 @@ class Mole(lib.StreamObject):
             del(_basis['default'])
         else:
             _basis = self.basis
-        self._basis = self.format_basis(_basis)
+        self._basis = self.format_basis(_basis)# 从文件读取了基组数据
 
 # TODO: Consider ECP info in point group symmetry initialization
         if self.ecp:
@@ -2393,12 +2393,12 @@ class Mole(lib.StreamObject):
                 _ecp = self.ecp
             self._ecp = self.format_ecp(_ecp)
 
-        env = self._env[:PTR_ENV_START]
+        env = self._env[:PTR_ENV_START]#PTR_ENV_START=20
         self._atm, self._bas, self._env = \
                 self.make_env(self._atom, self._basis, env, self.nucmod,
-                              self.nucprop)
+                              self.nucprop)# 准备libcint的参数，libcint是计算单电子/双电子高斯积分的
         self._atm, self._ecpbas, self._env = \
-                self.make_ecp_env(self._atm, self._ecp, self._env)
+                self.make_ecp_env(self._atm, self._ecp, self._env)# ecpbas都是0？
 
         if self.spin is None:
             self.spin = self.nelectron % 2
@@ -2419,7 +2419,7 @@ class Mole(lib.StreamObject):
             logger.debug3(self, 'arg.env = %s', self._env)
             logger.debug3(self, 'ecpbas  = %s', self._ecpbas)
 
-        self._built = True
+        self._built = True# 表示构建过了
         return self
     kernel = build
 
@@ -3292,7 +3292,7 @@ class Mole(lib.StreamObject):
             # FIXME: Whether to check _built and call build?  ._bas and .basis
             # may not be consistent. calling .build() may leads to wrong intor env.
             #self.build(False, False)
-        intor = self._add_suffix(intor)
+        intor = self._add_suffix(intor)# 添加后缀
         bas = self._bas
         env = self._env
         if 'ECP' in intor:
@@ -3308,7 +3308,7 @@ class Mole(lib.StreamObject):
             env[NGRIDS] = grids.shape[0]
             env[PTR_GRIDS] = env.size - grids.size
         return moleintor.getints(intor, self._atm, bas, env,
-                                 shls_slice, comp, hermi, aosym, out=out)
+                                 shls_slice, comp, hermi, aosym, out=out)# 调用libcgto
 
     def _add_suffix(self, intor, cart=None):
         if not (intor[:4] == 'cint' or

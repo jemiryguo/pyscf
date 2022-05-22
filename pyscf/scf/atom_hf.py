@@ -183,9 +183,9 @@ class AtomHF1e(rohf.HF1e, AtomSphAverageRHF):
 def frac_occ(symb, l, atomic_configuration=elements.NRSRHF_CONFIGURATION):
     nuc = gto.charge(symb)
     if l < 4 and atomic_configuration[nuc][l] > 0:
-        ne = atomic_configuration[nuc][l]
-        nd = (l * 2 + 1) * 2
-        ndocc = ne.__floordiv__(nd)
+        ne = atomic_configuration[nuc][l]  # atomic_configuration是每个原子所有spdf轨道电子的和，不管层数
+        nd = (l * 2 + 1) * 2 # 第l+1个轨道最多容纳电子书
+        ndocc = ne.__floordiv__(nd)# 表示第几层的s/p/d/f轨道被占满了
         frac = (float(ne) / nd - ndocc) * 2
     else:
         ndocc = frac = 0

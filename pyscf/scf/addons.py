@@ -391,11 +391,11 @@ def project_dm_nr2nr(mol1, dm1, mol2):
     :func:`project_dm_nr2r` projects from non-relativistic to relativistic basis.
     :func:`project_dm_r2r`  is the projection between relativistic (spinor) basis.
     '''
-    s22 = mol2.intor_symmetric('int1e_ovlp')
-    s21 = mole.intor_cross('int1e_ovlp', mol2, mol1)
-    p21 = lib.cho_solve(s22, s21, strict_sym_pos=False)
+    s22 = mol2.intor_symmetric('int1e_ovlp')# 调用libcgto计算单电子积分
+    s21 = mole.intor_cross('int1e_ovlp', mol2, mol1)# 调用libcgto计算单电子分子轨道积分
+    p21 = lib.cho_solve(s22, s21, strict_sym_pos=False)  # 求解线性方程组s22 \ s21, 使用Cholesky分解， 投影算符
     if isinstance(dm1, numpy.ndarray) and dm1.ndim == 2:
-        return reduce(numpy.dot, (p21, dm1, p21.conj().T))
+        return reduce(numpy.dot, (p21, dm1, p21.conj().T))# 把dm1投影到分子轨道
     else:
         return lib.einsum('pi,nij,qj->npq', p21, dm1, p21.conj())
 
@@ -943,11 +943,11 @@ def fast_newton(mf, mo_coeff=None, mo_occ=None, dm0=None,
         if getattr(mf, 'grids', None):
             mf0.grids = approx_grids
             mf0._numint = approx_numint
-# Note: by setting small_rho_cutoff, dft.get_veff function may overwrite
-# approx_grids and approx_numint.  It will further changes the corresponding
-# mf1 grids and _numint.  If inital guess dm0 or mo_coeff/mo_occ were given,
-# dft.get_veff are not executed so that more grid points may be found in
-# approx_grids.
+            # Note: by setting small_rho_cutoff, dft.get_veff function may overwrite
+            # approx_grids and approx_numint.  It will further changes the corresponding
+            # mf1 grids and _numint.  If inital guess dm0 or mo_coeff/mo_occ were given,
+            # dft.get_veff are not executed so that more grid points may be found in
+            # approx_grids.
             mf0.small_rho_cutoff = mf.small_rho_cutoff * 10
         mf0.kernel()
         mf1.with_df = mf0.with_df
@@ -973,11 +973,11 @@ def fast_newton(mf, mo_coeff=None, mo_occ=None, dm0=None,
     mf.mo_coeff  = mf1.mo_coeff
     mf.mo_occ    = mf1.mo_occ
 
-#    mf = copy.copy(mf)
-#    def mf_kernel(*args, **kwargs):
-#        logger.warn(mf, "fast_newton is a wrap function to quickly setup and call Newton solver. "
-#                    "There's no need to call kernel function again for fast_newton.")
-#        del(mf.kernel)  # warn once and remove circular depdence
-#        return mf.e_tot
-#    mf.kernel = mf_kernel
+    #    mf = copy.copy(mf)
+    #    def mf_kernel(*args, **kwargs):
+    #        logger.warn(mf, "fast_newton is a wrap function to quickly setup and call Newton solver. "
+    #                    "There's no need to call kernel function again for fast_newton.")
+    #        del(mf.kernel)  # warn once and remove circular depdence
+    #        return mf.e_tot
+    #    mf.kernel = mf_kernel
     return mf

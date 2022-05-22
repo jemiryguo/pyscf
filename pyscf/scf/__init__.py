@@ -92,7 +92,7 @@ Saved results
         SCF converged or not
     e_tot : float
         Total HF energy (electronic energy plus nuclear repulsion)
-    mo_energy : 
+    mo_energy :
         Orbital energies
     mo_occ
         Orbital occupancy
@@ -129,7 +129,7 @@ HF.__doc__ = '''
 A wrap function to create SCF class (RHF or UHF).\n
 ''' + hf.SCF.__doc__
 
-def RHF(mol, *args):
+def RHF(mol, *args):# RHF构造函数的分发函数
     if mol.nelectron == 1:
         if mol.symmetry:
             return rhf_symm.HF1e(mol)

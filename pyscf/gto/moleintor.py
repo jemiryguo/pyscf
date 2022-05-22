@@ -486,7 +486,7 @@ def getints2c(intor_name, atm, bas, env, shls_slice=None, comp=1, hermi=0,
         if cintopt is None:
             cintopt = make_cintopt(atm, bas, env, intor_name)
 
-        fn = getattr(libcgto, drv_name)
+        fn = getattr(libcgto, drv_name)# 调用库函数
         fn(getattr(libcgto, intor_name), mat.ctypes.data_as(ctypes.c_void_p),
            ctypes.c_int(comp), ctypes.c_int(hermi),
            (ctypes.c_int*4)(*(shls_slice[:4])),

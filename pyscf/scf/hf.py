@@ -124,7 +124,7 @@ Keyword argument "init_dm" is replaced by "dm0"''')
     else:
         dm = dm0
 
-    h1e = mf.get_hcore(mol)
+    h1e = mf.get_hcore(mol)# 初始密度矩阵
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     logger.info(mf, 'init E= %.15g', e_tot)
@@ -356,21 +356,20 @@ def init_guess_by_minao(mol):
             return occ, basis_ano
 
         stdsymb = gto.mole._std_symbol(symb)
-        basis_add = gto.basis.load('ano', stdsymb)
-# coreshl defines the core shells to be removed in the initial guess
-        coreshl = gto.ecp.core_configuration(nelec_ecp)
+        basis_add = gto.basis.load('ano', stdsymb)# 从ano.dat读取
+        # coreshl defines the core shells to be removed in the initial guess
+        coreshl = gto.ecp.core_configuration(nelec_ecp)# 返回四个数对应满壳层电子的spdf轨道电子数，认为是核心，不参与计算
         #coreshl = (0,0,0,0)  # it keeps all core electrons in the initial guess
-        for l in range(4):
-            ndocc, frac = atom_hf.frac_occ(stdsymb, l)
+        for l in range(4):# spdf四个
+            ndocc, frac = atom_hf.frac_occ(stdsymb, l)# 这个s/p/d/f轨道已被占满了ndocc层，第ndocc+1层填重了frac/2
             assert ndocc >= coreshl[l]
-            degen = l * 2 + 1
+            degen = l * 2 + 1# 这种轨道的轨道数
             occ_l = [2,]*(ndocc-coreshl[l]) + [frac,]
             occ.append(numpy.repeat(occ_l, degen))
-            basis_ano.append([l] + [b[:1] + b[1+coreshl[l]:ndocc+2]
-                                    for b in basis_add[l][1:]])
-        occ = numpy.hstack(occ)
+            basis_ano.append([l] + [b[:1] + b[1 + coreshl[l]:ndocc + 2] for b in basis_add[l][1:]])  # basis_add是个列表，长度对应spdfg，每个元素也是列表。一个元素是l，之后是若干个轨道信息
+        occ = numpy.hstack(occ)# 排序是s/p/d/f/g -> 轨道序数 -> 层数
 
-        if nelec_ecp > 0:
+        if nelec_ecp > 0:# 固定内部电子的时候使用
             if symb in mol._basis:
                 input_basis = mol._basis[symb]
             elif stdsymb in mol._basis:
@@ -400,9 +399,9 @@ def init_guess_by_minao(mol):
             occ4ecp = numpy.hstack(occ4ecp)
             basis4ecp = lib.flatten(basis4ecp)
 
-# Compared to ANO valence basis, to check whether the ECP basis set has
-# reasonable AO-character contraction.  The ANO valence AO should have
-# significant overlap to ECP basis if the ECP basis has AO-character.
+            # Compared to ANO valence basis, to check whether the ECP basis set has
+            # reasonable AO-character contraction.  The ANO valence AO should have
+            # significant overlap to ECP basis if the ECP basis has AO-character.
             atm1 = gto.Mole()
             atm2 = gto.Mole()
             atom = [[symb, (0.,0.,0.)]]
@@ -419,7 +418,7 @@ def init_guess_by_minao(mol):
         return occ, basis_ano
 
     # Issue 548
-    if any(gto.charge(mol.atom_symbol(ia)) > 96 for ia in range(mol.natm)):
+    if any(gto.charge(mol.atom_symbol(ia)) > 96 for ia in range(mol.natm)):# >96意思是有小写字母
         logger.info(mol, 'MINAO initial guess is not available for super-heavy '
                     'elements. "atom" initial guess is used.')
         return init_guess_by_atom(mol)
@@ -429,27 +428,27 @@ def init_guess_by_minao(mol):
 
     basis = {}
     occdic = {}
-    for symb, nelec_ecp in nelec_ecp_dic.items():
-        occ_add, basis_add = minao_basis(symb, nelec_ecp)
+    for symb, nelec_ecp in nelec_ecp_dic.items():# 原子不重复
+        occ_add, basis_add = minao_basis(symb, nelec_ecp)# 从ano.dat读取原子轨道的信息，occ_add 是轨道填充情况，是一个列表，排序是 s/p/d/f -> 轨道序数 -> 轨道层数
         occdic[symb] = occ_add
         basis[symb] = basis_add
 
     occ = []
-    new_atom = []
-    for ia in range(mol.natm):
+    new_atom = []# 原子名称和位置
+    for ia in range(mol.natm):# 把重复原子的轨道加进来
         symb = mol.atom_symbol(ia)
         if not gto.is_ghost_atom(symb):
             occ.append(occdic[symb])
             new_atom.append(mol._atom[ia])
     occ = numpy.hstack(occ)
 
-    pmol = gto.Mole()
-    pmol._atm, pmol._bas, pmol._env = pmol.make_env(new_atom, basis, [])
+    pmol = gto.Mole()# 初始化Mole类
+    pmol._atm, pmol._bas, pmol._env = pmol.make_env(new_atom, basis, [])# 给libcint准备参数
     pmol._built = True
     dm = addons.project_dm_nr2nr(pmol, numpy.diag(occ), mol)
-# normalize eletron number
-#    s = mol.intor_symmetric('int1e_ovlp')
-#    dm *= mol.nelectron / (dm*s).sum()
+    # normalize eletron number
+    #    s = mol.intor_symmetric('int1e_ovlp')
+    #    dm *= mol.nelectron / (dm*s).sum()
     return dm
 
 
@@ -671,10 +670,10 @@ def make_rdm1(mo_coeff, mo_occ, **kwargs):
             Occupancy
     '''
     mocc = mo_coeff[:,mo_occ>0]
-# DO NOT make tag_array for dm1 here because this DM array may be modified and
-# passed to functions like get_jk, get_vxc.  These functions may take the tags
-# (mo_coeff, mo_occ) to compute the potential if tags were found in the DM
-# array and modifications to DM array may be ignored.
+    # DO NOT make tag_array for dm1 here because this DM array may be modified and
+    # passed to functions like get_jk, get_vxc.  These functions may take the tags
+    # (mo_coeff, mo_occ) to compute the potential if tags were found in the DM
+    # array and modifications to DM array may be ignored.
     return numpy.dot(mocc*mo_occ[mo_occ>0], mocc.conj().T)
 
 
@@ -1657,15 +1656,15 @@ class SCF(lib.StreamObject):
         '''
         cput0 = (logger.process_clock(), logger.perf_counter())
 
-        self.dump_flags()
-        self.build(self.mol)
+        self.dump_flags()# verbose>3的时候输出参数设置
+        self.build(self.mol)# self.opt = None
 
         if self.max_cycle > 0 or self.mo_coeff is None:
             self.converged, self.e_tot, \
                     self.mo_energy, self.mo_coeff, self.mo_occ = \
                     kernel(self, self.conv_tol, self.conv_tol_grad,
                            dm0=dm0, callback=self.callback,
-                           conv_check=self.conv_check, **kwargs)
+                           conv_check=self.conv_check, **kwargs)# 核心算法
         else:
             # Avoid to update SCF orbitals in the non-SCF initialization
             # (issue #495).  But run regular SCF for initial guess if SCF was
@@ -2069,8 +2068,8 @@ if __name__ == '__main__':
     mol.basis = 'ccpvdz'
     mol.build(0, 0)
 
-##############
-# SCF result
+    ##############
+    # SCF result
     method = scf.RHF(mol).x2c().density_fit().newton()
     method.init_guess = '1e'
     energy = method.scf()

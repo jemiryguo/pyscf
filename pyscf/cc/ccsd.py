@@ -107,7 +107,7 @@ def update_amps(mycc, t1, t2, eris):
     t2new *= .5  # *.5 because t2+t2.transpose(1,0,3,2) in the end
     time1 = log.timer_debug1('vvvv', *time0)
 
-#** make_inter_F
+    #** make_inter_F
     fov = fock[:nocc,nocc:].copy()
     t1new += fov
 
@@ -918,8 +918,8 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
         self.incore_complete = self.incore_complete or self.mol.incore_anyway
         self.level_shift = 0
 
-##################################################
-# don't modify the following attributes, they are not input options
+        ##################################################
+        # don't modify the following attributes, they are not input options
         self.mo_coeff = mo_coeff
         self.mo_occ = mo_occ
         self.converged = False
@@ -1176,7 +1176,7 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
         # return eris
 
         nmo = self.nmo
-        nao = self.mo_coeff.shape[0]
+        nao = self.mo_coeff.shape[0]# nmo总是和nao相等？
         nmo_pair = nmo * (nmo+1) // 2
         nao_pair = nao * (nao+1) // 2
         mem_incore = (max(nao_pair**2, nmo**4) + nmo_pair**2) * 8/1e6
@@ -1190,7 +1190,7 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
                         'MO integrals are computed based on the DF 3-index tensors.\n'
                         'It\'s recommended to use dfccsd.CCSD for the '
                         'DF-CCSD calculations')
-            return _make_df_eris_outcore(self, mo_coeff)
+            return _make_df_eris_outcore(self, mo_coeff)# density fitting核心步骤
 
         else:
             return _make_eris_outcore(self, mo_coeff)
@@ -1295,7 +1295,7 @@ class _ChemistsERIs:
             mo_coeff = mycc.mo_coeff
         self.mo_coeff = mo_coeff = _mo_without_core(mycc, mo_coeff)
 
-# Note: Recomputed fock matrix and HF energy since SCF may not be fully converged.
+        # Note: Recomputed fock matrix and HF energy since SCF may not be fully converged.
         dm = mycc._scf.make_rdm1(mycc.mo_coeff, mycc.mo_occ)
         vhf = mycc._scf.get_veff(mycc.mol, dm)
         fockao = mycc._scf.get_fock(vhf=vhf, dm=dm)
@@ -1561,21 +1561,23 @@ def _flops(nocc, nvir):
 if __name__ == '__main__':
     from pyscf import scf
 
-    mol = gto.Mole()
+    mol = gto.Mole() #初始化模型参数
     mol.atom = [
         [8 , (0. , 0.     , 0.)],
         [1 , (0. , -0.757 , 0.587)],
-        [1 , (0. , 0.757  , 0.587)]]
+        [1 , (0. , 0.757  , 0.587)]]# 水分子的结构
 
-    mol.basis = {'H': 'cc-pvdz',
-                 'O': 'cc-pvdz',}
-    mol.build()
-    rhf = scf.RHF(mol)
+    mol.basis = {
+        'H': 'cc-pvdz',
+        'O': 'cc-pvdz',
+    }  # 轨道基组https://en.wikipedia.org/wiki/Basis_set_(chemistry)
+    mol.build(verbose=1000)# 构建模型，读取基组数据，并为libcint库的调用做准备
+    rhf = scf.RHF(mol)# 构造SCF类
     rhf.scf() # -76.0267656731
 
-    mf = rhf.density_fit(auxbasis='weigend')
+    mf = rhf.density_fit(auxbasis='weigend')#初始化了density fit类并返回，没有具体计算
     mf._eri = None
-    mcc = CCSD(mf)
+    mcc = CCSD(mf)#初始化了CCSD类并返回，没有具体计算
     eris = mcc.ao2mo()
     emp2, t1, t2 = mcc.init_amps(eris)
     print(abs(t2).sum() - 4.9318753386922278)

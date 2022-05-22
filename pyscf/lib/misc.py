@@ -576,7 +576,7 @@ class StreamObject(object):
 
 _warn_once_registry = {}
 def check_sanity(obj, keysref, stdout=sys.stdout):
-    '''Check misinput of class attributes, check whether a class method is
+    '''Check missinput of class attributes, check whether a class method is
     overwritten.  It does not check the attributes which are prefixed with
     "_".
     '''
