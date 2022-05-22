@@ -1156,13 +1156,13 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
         if l1 is None: l1, l2 = self.solve_lambda(t1, t2)
         return ccsd_rdm.make_rdm2(self, t1, t2, l1, l2, ao_repr=ao_repr)
 
-    def ao2mo(self, mo_coeff=None):
+    def ao2mo(self, mo_coeff=None):#分子轨道指的是density fitting插入的基矢
         # Pseudo code how eris are implemented:
         # nocc = self.nocc
         # nmo = self.nmo
         # nvir = nmo - nocc
         # eris = _ChemistsERIs()
-        # eri = ao2mo.incore.full(self._scf._eri, mo_coeff)
+        # eri = ao2mo.incore.full(self._scf._eri, mo_coeff)构造全部的双电子积分
         # eri = ao2mo.restore(1, eri, nmo)
         # eris.oooo = eri[:nocc,:nocc,:nocc,:nocc].copy()
         # eris.ovoo = eri[:nocc,nocc:,:nocc,:nocc].copy()
@@ -1179,18 +1179,18 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
         nao = self.mo_coeff.shape[0]# nmo总是和nao相等？
         nmo_pair = nmo * (nmo+1) // 2
         nao_pair = nao * (nao+1) // 2
-        mem_incore = (max(nao_pair**2, nmo**4) + nmo_pair**2) * 8/1e6
+        mem_incore = (max(nao_pair**2, nmo**4) + nmo_pair**2) * 8/1e6#内存大小
         mem_now = lib.current_memory()[0]
         if (self._scf._eri is not None and
             (mem_incore+mem_now < self.max_memory or self.incore_complete)):
-            return _make_eris_incore(self, mo_coeff)
+            return _make_eris_incore(self, mo_coeff)#incore和outcore什么区别???
 
         elif getattr(self._scf, 'with_df', None):
             logger.warn(self, 'CCSD detected DF being used in the HF object. '
                         'MO integrals are computed based on the DF 3-index tensors.\n'
                         'It\'s recommended to use dfccsd.CCSD for the '
                         'DF-CCSD calculations')
-            return _make_df_eris_outcore(self, mo_coeff)# density fitting核心步骤
+            return _make_df_eris_outcore(self, mo_coeff)#构造density fitting的分子轨道，核心步骤
 
         else:
             return _make_eris_outcore(self, mo_coeff)
@@ -1296,7 +1296,7 @@ class _ChemistsERIs:
         self.mo_coeff = mo_coeff = _mo_without_core(mycc, mo_coeff)
 
         # Note: Recomputed fock matrix and HF energy since SCF may not be fully converged.
-        dm = mycc._scf.make_rdm1(mycc.mo_coeff, mycc.mo_occ)
+        dm = mycc._scf.make_rdm1(mycc.mo_coeff, mycc.mo_occ)#返回密度矩阵，由占据轨道组成本征向量，本征值都是2
         vhf = mycc._scf.get_veff(mycc.mol, dm)
         fockao = mycc._scf.get_fock(vhf=vhf, dm=dm)
         self.fock = reduce(numpy.dot, (mo_coeff.conj().T, fockao, mo_coeff))
@@ -1496,7 +1496,7 @@ def _make_eris_outcore(mycc, mo_coeff=None):
 def _make_df_eris_outcore(mycc, mo_coeff=None):
     cput0 = (logger.process_clock(), logger.perf_counter())
     log = logger.Logger(mycc.stdout, mycc.verbose)
-    eris = _ChemistsERIs()
+    eris = _ChemistsERIs()# 构造储存eri的类
     eris._common_init_(mycc, mo_coeff)
 
     mo_coeff = numpy.asarray(eris.mo_coeff, order='F')

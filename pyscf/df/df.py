@@ -85,12 +85,12 @@ class DF(lib.StreamObject):
         self.max_memory = mol.max_memory
         self._auxbasis = auxbasis
 
-##################################################
-# Following are not input options
+        ##################################################
+        # Following are not input options
         self.auxmol = None
-# If _cderi_to_save is specified, the 3C-integral tensor will be saved in this file.
+        # If _cderi_to_save is specified, the 3C-integral tensor will be saved in this file.
         self._cderi_to_save = tempfile.NamedTemporaryFile(dir=lib.param.TMPDIR)
-# If _cderi is specified, the 3C-integral tensor will be read from this file
+        # If _cderi is specified, the 3C-integral tensor will be read from this file
         self._cderi = None
         self._vjopt = None
         self._rsh_df = {}  # Range separated Coulomb DF objects
@@ -189,8 +189,10 @@ class DF(lib.StreamObject):
         if blksize is None:
             blksize = self.blockdim
 
-        with addons.load(self._cderi, 'j3c') as feri:
-            if isinstance(feri, numpy.ndarray):
+        with addons.load(
+                self._cderi,
+                'j3c') as feri:  # 在这里_cderi是ndarray，根据pyscf/pyscf/ao2mo/addons.py:45的语句直接返回_cderi本身，因此feri=self._cderi
+            if isinstance(feri, numpy.ndarray):# 从这里继续
                 naoaux = feri.shape[0]
                 for b0, b1 in self.prange(0, naoaux, blksize):
                     yield numpy.asarray(feri[b0:b1], order='C')

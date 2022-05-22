@@ -208,23 +208,23 @@ def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):
 
     t0 = t1 = (logger.process_clock(), logger.perf_counter())
     log = logger.Logger(dfobj.stdout, dfobj.verbose)
-    fmmm = _ao2mo.libao2mo.AO2MOmmm_bra_nr_s2
-    fdrv = _ao2mo.libao2mo.AO2MOnr_e2_drv
-    ftrans = _ao2mo.libao2mo.AO2MOtranse2_nr_s2
+    fmmm = _ao2mo.libao2mo.AO2MOmmm_bra_nr_s2  #c函数
+    fdrv = _ao2mo.libao2mo.AO2MOnr_e2_drv  #c函数
+    ftrans = _ao2mo.libao2mo.AO2MOtranse2_nr_s2  #c函数
     null = lib.c_null_ptr()
 
     dms = numpy.asarray(dm)
     dm_shape = dms.shape
     nao = dm_shape[-1]
-    dms = dms.reshape(-1,nao,nao)
+    dms = dms.reshape(-1,nao,nao)# 第一个维度是set
     nset = dms.shape[0]
-    vj = 0
-    vk = numpy.zeros_like(dms)
+    vj = 0# 返回的变量
+    vk = numpy.zeros_like(dms)# 返回的变量
 
     if with_j:
         idx = numpy.arange(nao)
-        dmtril = lib.pack_tril(dms + dms.conj().transpose(0,2,1))
-        dmtril[:,idx*(idx+1)//2+idx] *= .5
+        dmtril = lib.pack_tril(dms + dms.conj().transpose(0,2,1))#下三角矩阵(除去第一个维度)向量化，如果dms是24*24，nset=1，那么dmtril=1*(24*24+24)/2=1*300
+        dmtril[:,idx*(idx+1)//2+idx] *= .5# 对角元素除以2
 
     if not with_k:
         for eri1 in dfobj.loop():
@@ -279,7 +279,7 @@ def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):
         #:vk = numpy.einsum('pki,pkj->ij', cderi, vk)
         rargs = (ctypes.c_int(nao), (ctypes.c_int*4)(0, nao, 0, nao),
                  null, ctypes.c_int(0))
-        dms = [numpy.asarray(x, order='F') for x in dms]
+        dms = [numpy.asarray(x, order='F') for x in dms]# 按照nset重新分成矩阵
         max_memory = dfobj.max_memory - lib.current_memory()[0]
         blksize = max(4, int(min(dfobj.blockdim, max_memory*.22e6/8/nao**2)))
         buf = numpy.empty((2,blksize,nao,nao))
