@@ -213,10 +213,10 @@ def make_auxmol(mol, auxbasis=None):
         del(_basis['default'])
     else:
         _basis = auxbasis
-    pmol._basis = pmol.format_basis(_basis)
+    pmol._basis = pmol.format_basis(_basis)# 从文件读入基组
 
     pmol._atm, pmol._bas, pmol._env = \
-            pmol.make_env(mol._atom, pmol._basis, mol._env[:gto.PTR_ENV_START])
+            pmol.make_env(mol._atom, pmol._basis, mol._env[:gto.PTR_ENV_START])# 给libcint准备
     pmol._built = True
     logger.debug(mol, 'num shells = %d, num cGTOs = %d',
                  pmol.nbas, pmol.nao_nr())

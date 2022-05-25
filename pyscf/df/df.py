@@ -122,7 +122,7 @@ class DF(lib.StreamObject):
             log.info('_cderi_to_save = %s', self._cderi_to_save.name)
         return self
 
-    def build(self):
+    def build(self):#返回的维度是(辅助基组数目，基组数目维矩阵的下三角元素个数)
         t0 = (logger.process_clock(), logger.perf_counter())
         log = logger.Logger(self.stdout, self.verbose)
 
@@ -130,7 +130,7 @@ class DF(lib.StreamObject):
         self.dump_flags()
 
         mol = self.mol
-        auxmol = self.auxmol = addons.make_auxmol(self.mol, self.auxbasis)
+        auxmol = self.auxmol = addons.make_auxmol(self.mol, self.auxbasis)# 返回虚假的原子， 用df做基组
         nao = mol.nao_nr()
         naux = auxmol.nao_nr()
         nao_pair = nao*(nao+1)//2
@@ -142,7 +142,7 @@ class DF(lib.StreamObject):
             not isinstance(self._cderi_to_save, str)):
             self._cderi = incore.cholesky_eri(mol, int3c=int3c, int2c=int2c,
                                               auxmol=auxmol,
-                                              max_memory=max_memory, verbose=log)
+                                              max_memory=max_memory, verbose=log)#cholesky分解
         else:
             if isinstance(self._cderi_to_save, str):
                 cderi = self._cderi_to_save
@@ -185,17 +185,17 @@ class DF(lib.StreamObject):
 
     def loop(self, blksize=None):
         if self._cderi is None:
-            self.build()
+            self.build()#根据辅助基组生成交叠<辅助基组|基组>，其中基组是基组矩阵的下三角元维向量
         if blksize is None:
             blksize = self.blockdim
 
         with addons.load(
                 self._cderi,
                 'j3c') as feri:  # 在这里_cderi是ndarray，根据pyscf/pyscf/ao2mo/addons.py:45的语句直接返回_cderi本身，因此feri=self._cderi
-            if isinstance(feri, numpy.ndarray):# 从这里继续
+            if isinstance(feri, numpy.ndarray):
                 naoaux = feri.shape[0]
-                for b0, b1 in self.prange(0, naoaux, blksize):
-                    yield numpy.asarray(feri[b0:b1], order='C')
+                for b0, b1 in self.prange(0, naoaux, blksize):# 迭代器版的range
+                    yield numpy.asarray(feri[b0:b1], order='C')# 返回部分辅助机组的交叠
 
             else:
                 if isinstance(feri, h5py.Group):

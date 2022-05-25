@@ -103,7 +103,7 @@ def update_amps(mycc, t1, t2, eris):
     mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
 
     t1new = numpy.zeros_like(t1)
-    t2new = mycc._add_vvvv(t1, t2, eris, t2sym='jiba')
+    t2new = mycc._add_vvvv(t1, t2, eris, t2sym='jiba')#从这里继续
     t2new *= .5  # *.5 because t2+t2.transpose(1,0,3,2) in the end
     time1 = log.timer_debug1('vvvv', *time0)
 
@@ -388,9 +388,9 @@ def _add_vvvv_tril(mycc, t1, t2, eris, out=None, with_ovvv=None):
         tau = numpy.empty((nocc2,nvir,nvir), dtype=t2.dtype)
         p1 = 0
         for i in range(nocc):
-            p0, p1 = p1, p1 + i+1
-            tau[p0:p1] = numpy.einsum('a,jb->jab', t1[i], t1[:i+1])
-            tau[p0:p1] += t2[i,:i+1]
+            p0, p1 = p1, p1 + i+1#对应下三角指标
+            tau[p0:p1] = numpy.einsum('a,jb->jab', t1[i], t1[:i+1])#mtau(i,j)是一个nvir*nvir的矩阵，等于kron(t1(i,:),t1(j,:))，tau是mtau的下三角向量化
+            tau[p0:p1] += t2[i,:i+1]# t2对应占据轨道矩阵（前两维）的下三对角向量化
 
     if mycc.direct:   # AO-direct CCSD
         mo = getattr(eris, 'mo_coeff', None)
@@ -1008,14 +1008,14 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
         mo_e = eris.mo_energy
         nocc = self.nocc
         nvir = mo_e.size - nocc
-        eia = mo_e[:nocc,None] - mo_e[None,nocc:]
+        eia = mo_e[:nocc,None] - mo_e[None,nocc:]#nocc*nvir维能量差eia[i.j]=e[i]-e[j]
 
-        t1 = eris.fock[:nocc,nocc:] / eia
+        t1 = eris.fock[:nocc,nocc:] / eia#一阶微扰
         t2 = numpy.empty((nocc,nocc,nvir,nvir), dtype=eris.ovov.dtype)
         max_memory = self.max_memory - lib.current_memory()[0]
         blksize = int(min(nvir, max(BLKMIN, max_memory*.3e6/8/(nocc**2*nvir+1))))
         emp2 = 0
-        for p0, p1 in lib.prange(0, nvir, blksize):
+        for p0, p1 in lib.prange(0, nvir, blksize):#二阶微扰公式???
             eris_ovov = eris.ovov[:,p0:p1]
             t2[:,:,p0:p1] = (eris_ovov.transpose(0,2,1,3).conj()
                              / lib.direct_sum('ia,jb->ijab', eia[:,p0:p1], eia))
@@ -1190,7 +1190,7 @@ http://sunqm.net/pyscf/code-rule.html#api-rules for the details of API conventio
                         'MO integrals are computed based on the DF 3-index tensors.\n'
                         'It\'s recommended to use dfccsd.CCSD for the '
                         'DF-CCSD calculations')
-            return _make_df_eris_outcore(self, mo_coeff)#构造density fitting的分子轨道，核心步骤
+            return _make_df_eris_outcore(self, mo_coeff)#构造density fitting的分子轨道，核心步骤，分片返回了稠密的eri
 
         else:
             return _make_eris_outcore(self, mo_coeff)
@@ -1298,8 +1298,8 @@ class _ChemistsERIs:
         # Note: Recomputed fock matrix and HF energy since SCF may not be fully converged.
         dm = mycc._scf.make_rdm1(mycc.mo_coeff, mycc.mo_occ)#返回密度矩阵，由占据轨道组成本征向量，本征值都是2
         vhf = mycc._scf.get_veff(mycc.mol, dm)
-        fockao = mycc._scf.get_fock(vhf=vhf, dm=dm)
-        self.fock = reduce(numpy.dot, (mo_coeff.conj().T, fockao, mo_coeff))
+        fockao = mycc._scf.get_fock(vhf=vhf, dm=dm)#似乎是在辅助基组下投影的AO???
+        self.fock = reduce(numpy.dot, (mo_coeff.conj().T, fockao, mo_coeff))# 进入MO表象
         self.e_hf = mycc._scf.energy_tot(dm=dm, vhf=vhf)
         nocc = self.nocc = mycc.nocc
         self.mol = mycc.mol
@@ -1497,7 +1497,7 @@ def _make_df_eris_outcore(mycc, mo_coeff=None):
     cput0 = (logger.process_clock(), logger.perf_counter())
     log = logger.Logger(mycc.stdout, mycc.verbose)
     eris = _ChemistsERIs()# 构造储存eri的类
-    eris._common_init_(mycc, mo_coeff)
+    eris._common_init_(mycc, mo_coeff)#重新计算了HF能量(使用了辅助基组)
 
     mo_coeff = numpy.asarray(eris.mo_coeff, order='F')
     nocc = eris.nocc
@@ -1513,16 +1513,16 @@ def _make_df_eris_outcore(mycc, mo_coeff=None):
     ijslice = (0, nmo, 0, nmo)
     Lpq = None
     p1 = 0
-    for eri1 in mycc._scf.with_df.loop():
+    for eri1 in mycc._scf.with_df.loop():#按照辅助基组和原始基组交叠循环，第一维度是交叠辅助基组的切片，第二维度是dm1的下三角向量化
         Lpq = _ao2mo.nr_e2(eri1, mo_coeff, ijslice, aosym='s2', out=Lpq).reshape(-1,nmo,nmo)
         p0, p1 = p1, p1 + Lpq.shape[0]
         Loo[p0:p1] = Lpq[:,:nocc,:nocc]
         Lov[p0:p1] = Lpq[:,:nocc,nocc:]
         Lvo[p0:p1] = Lpq[:,nocc:,:nocc]
-        Lvv[p0:p1] = lib.pack_tril(Lpq[:,nocc:,nocc:].reshape(-1,nvir,nvir))
-    Loo = Loo.reshape(naux,nocc*nocc)
-    Lov = Lov.reshape(naux,nocc*nvir)
-    Lvo = Lvo.reshape(naux,nocc*nvir)
+        Lvv[p0:p1] = lib.pack_tril(Lpq[:,nocc:,nocc:].reshape(-1,nvir,nvir))#取下三角元素
+    Loo = Loo.reshape(naux,nocc*nocc)#向量化
+    Lov = Lov.reshape(naux,nocc*nvir)#向量化
+    Lvo = Lvo.reshape(naux, nocc * nvir)  #向量化
 
     eris.feri1 = lib.H5TmpFile()
     eris.oooo = eris.feri1.create_dataset('oooo', (nocc,nocc,nocc,nocc), 'f8')
@@ -1540,7 +1540,7 @@ def _make_df_eris_outcore(mycc, mo_coeff=None):
     eris.ovvv[:] = lib.ddot(Lov.T, Lvv).reshape(nocc,nvir,nvir_pair)
     eris.vvvv[:] = lib.ddot(Lvv.T, Lvv)
     log.timer('CCSD integral transformation', *cput0)
-    return eris
+    return eris# 这里搞了DF然后还是把eri全都存下来了???
 
 def _flops(nocc, nvir):
     '''Total float points'''
@@ -1571,15 +1571,15 @@ if __name__ == '__main__':
         'H': 'cc-pvdz',
         'O': 'cc-pvdz',
     }  # 轨道基组https://en.wikipedia.org/wiki/Basis_set_(chemistry)
-    mol.build(verbose=1000)# 构建模型，读取基组数据，并为libcint库的调用做准备
+    mol.build(verbose=0)# 构建模型，读取基组数据，并为libcint库的调用做准备
     rhf = scf.RHF(mol)# 构造SCF类
     rhf.scf() # -76.0267656731
 
     mf = rhf.density_fit(auxbasis='weigend')#初始化了density fit类并返回，没有具体计算
     mf._eri = None
     mcc = CCSD(mf)#初始化了CCSD类并返回，没有具体计算
-    eris = mcc.ao2mo()
-    emp2, t1, t2 = mcc.init_amps(eris)
+    eris = mcc.ao2mo()#通过辅助机组构造了eri
+    emp2, t1, t2 = mcc.init_amps(eris)#貌似通过一阶二阶微扰论产生初始猜测
     print(abs(t2).sum() - 4.9318753386922278)
     print(emp2 - -0.20401737899811551)
     t1, t2 = update_amps(mcc, t1, t2, eris)

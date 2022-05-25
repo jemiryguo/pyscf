@@ -156,7 +156,7 @@ def nr_e2(eri, mo_coeff, orbs_slice, aosym='s1', mosym='s1', out=None,
     assert(eri.flags.c_contiguous)
     assert(aosym in ('s4', 's2ij', 's2kl', 's2', 's1'))
     assert(mosym in ('s2', 's1'))
-    mo_coeff = numpy.asfortranarray(mo_coeff)
+    mo_coeff = numpy.asfortranarray(mo_coeff)# fortran排序的数组
     assert(mo_coeff.dtype == numpy.double)
     nao = mo_coeff.shape[0]
     k0, k1, l0, l1 = orbs_slice
@@ -178,7 +178,7 @@ def nr_e2(eri, mo_coeff, orbs_slice, aosym='s1', mosym='s1', out=None,
             fmmm = _fpointer('AO2MOmmm_nr_s1_iltj')
         else:
             fmmm = _fpointer('AO2MOmmm_nr_s1_igtj')
-
+    #fmmm矩阵乘法
     nrow = eri.shape[0]
     out = numpy.ndarray((nrow,kl_count), buffer=out)
     if out.size == 0:
@@ -200,8 +200,8 @@ def nr_e2(eri, mo_coeff, orbs_slice, aosym='s1', mosym='s1', out=None,
          eri.ctypes.data_as(ctypes.c_void_p),
          mo_coeff.ctypes.data_as(ctypes.c_void_p),
          ctypes.c_int(nrow), ctypes.c_int(nao),
-         (ctypes.c_int*4)(*orbs_slice), pao_loc, c_nbas)
-    return out
+         (ctypes.c_int*4)(*orbs_slice), pao_loc, c_nbas)# 转置下三角转环之类的
+    return out  # 大小是辅助基组个数*kl_count
 
 
 # if out is not None, transform AO to MO in-place
@@ -303,4 +303,3 @@ def r_e2(eri, mo_coeff, orbs_slice, tao, ao_loc, aosym='s1', out=None):
          (ctypes.c_int*4)(*orbs_slice),
          tao.ctypes.data_as(ctypes.c_void_p), c_ao_loc, c_nbas)
     return out
-
